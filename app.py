@@ -1,16 +1,106 @@
+import os
+import sys
+
+sys.path.append('/Users/songyi/Documents/bianc/watchlist/env/lib/python3.8/site-packages/')
 from flask import Flask #从 flask 包导入 Flask 类
 app = Flask(__name__)   #通过实例化这个类，创建一个程序对象 app
 from flask import render_template  ##从 flask 包导入 模板渲染函数
+from flask_sqlalchemy import SQLAlchemy  # 导入扩展类
+
 
 
 @app.route('/')      #一个视图函数可以绑定多个 URL，这通过附加多个装饰器实现
 @app.route('/123')   #这个叫做装饰器，参数是对应的URL地址 (相对地址)
 def index():      #这个叫做与装饰器对应的视图函数，也叫请求处理函数
-    return render_template('index.html', name=name, movies=movies)
+    return render_template('index.html', name=name, movies=movies)   # A:渲染主页模板
 
-    
+
+#以下整块为数据库配置
+WIN = sys.platform.startswith('win')
+if WIN:  # 如果是 Windows 系统，使用三个斜线
+    prefix = 'sqlite:///'
+else:  # 否则使用四个斜线
+    prefix = 'sqlite:////'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = prefix + os.path.join(app.root_path, 'data.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # 关闭对模型修改的监控
+# 在扩展类实例化前加载配置
+db = SQLAlchemy(app)  #数据库对象创建，但真正的数据库还没创建
+
+
+#创建数据库模型类，也就是创建数据库中的表。分别是用户信息和电影条目信息。这是只是创建了类，正真的表还没创建。
+class User(db.Model):  # 表名将会是 user（自动生成，小写处理）。其中模型类要声明继承 db.Model
+    id = db.Column(db.Integer, primary_key=True)  # 主键
+    name = db.Column(db.String(20))  # 名字
+
+
+class Movie(db.Model):  # 表名将会是 movie
+    id = db.Column(db.Integer, primary_key=True)  # 主键
+    title = db.Column(db.String(60))  # 电影标题
+    year = db.Column(db.String(4))  # 电影年份
+
+
+#模型类创建后，还不能对数据库进行操作，因为我们还没有创建真正的数据库文件和真正的表
+db.create_all() #创建真正的数据库，表也就跟着创建了
 '''
-渲染主页模板
+#如果你改动了模型类，想重新生成表模型，那么需要先使用 db.drop_all() 删除表，但原来的数据库还在，
+只是成了没有数据的空数据库，然后使用db.create_all() 重新创建新表。
+注意：这会一并删除所有数据，如果你想在不破坏数据库内的数据的前提下变更表的结构，
+需要使用数据库迁移工具，比如集成了 Alembic 的 Flask-Migrate 扩展。
+'''
+
+#创建命令来删除数据表并重建
+import click
+
+@app.cli.command()  # 注册为命令
+@click.option('--drop', is_flag=True, help='Create after drop.')  # 设置选项
+def initdb(drop):
+    """Initialize the database."""
+    if drop:  # 判断是否输入了选项
+        db.drop_all()
+    db.create_all()
+    click.echo('Initialized database.')  # 输出提示信息
+#在终端下，使用flask initdb 调用以上命令
+
+
+#生成虚拟数据.创建自定义命令 forge
+import click
+
+@app.cli.command()
+def forge():
+    """Generate fake data."""
+    db.create_all()
+
+    # 全局的两个变量移动到这个函数内
+    name = 'Grey Li'
+    movies = [
+        {'title': 'My Neighbor Totoro', 'year': '1988'},
+        {'title': 'Dead Poets Society', 'year': '1989'},
+        {'title': 'A Perfect World', 'year': '1993'},
+        {'title': 'Leon', 'year': '1994'},
+        {'title': 'Mahjong', 'year': '1996'},
+        {'title': 'Swallowtail Butterfly', 'year': '1996'},
+        {'title': 'King of Comedy', 'year': '1999'},
+        {'title': 'Devils on the Doorstep', 'year': '1999'},
+        {'title': 'WALL-E', 'year': '2008'},
+        {'title': 'The Pork of Music', 'year': '2012'},
+    ]
+
+    user = User(name=name)
+    db.session.add(user)
+    for m in movies:
+        movie = Movie(title=m['title'], year=m['year'])
+        db.session.add(movie)
+
+    db.session.commit()
+    click.echo('Done.')
+
+#现在在终端执行 flask forge 命令就会把所有虚拟数据添加到数据库里：
+
+
+
+'''
+A:渲染主页模板
 使用 render_template() 函数可以把模板渲染出来，必须传入的参数为模板文件名
 （相对于 templates 根目录的文件路径），
 这里即 'index.html'。为了让模板正确渲染，我们还要把模板内部使用的变量通过关键字参数传入这个函数
@@ -87,9 +177,11 @@ Jinja2 的语法和 Python 大致相同，你在后面会陆续接触到一些�
 '''
 准备虚拟数据
 为了模拟页面渲染，我们需要先创建一些虚拟数据，用来填充页面内容：
-注意，数据虽然放在函数调用后面，但一样可以被调用。
+注意，数据虽然放在函数调用后面，但一样可以被调用,因为这两个是全局变量。
 '''
 
+'''
+因为有另外一个函数提供了数据，所以此处屏蔽了
 name = 'Grey Li'
 movies = [
     {'title': 'My Neighbor Totoro', 'year': '1988'},
@@ -103,3 +195,21 @@ movies = [
     {'title': 'WALL-E', 'year': '2008'},
     {'title': 'The Pork of Music', 'year': '2012'},
 ]
+'''
+
+'''
+使用 SQLAlchemy 操作数据库
+为了简化数据库操作，我们将使用 SQLAlchemy——一个 Python 数据库工具（ORM，即对象关系映射）。
+借助 SQLAlchemy，你可以通过定义 Python 类来表示数据库里的一张表（类属性表示表中的字段 / 列），
+通过对这个类进行各种操作来代替写 SQL 语句。这个类我们称之为模型类，类中的属性我们将称之为字段。
+
+Flask 有大量的第三方扩展，这些扩展可以简化和第三方库的集成工作。
+我们下面将使用一个叫做 Flask-SQLAlchemy 的官方扩展来集成 SQLAlchemy。
+'''
+
+'''
+以下为打印输出测试区域：
+'''
+import os
+print("ccc")
+print(os.path.join(app.root_path, 'data.db'))
