@@ -8,12 +8,45 @@ from flask import render_template  ##从 flask 包导入 模板渲染函数
 from flask_sqlalchemy import SQLAlchemy  # 导入扩展类
 
 
+#首页视图函数
 @app.route('/')      #一个视图函数可以绑定多个 URL，这通过附加多个装饰器实现
 @app.route('/123')   #这个叫做装饰器，参数是对应的URL地址 (相对地址)
 def index():      #这个叫做与装饰器对应的视图函数，也叫请求处理函数  
-    user = User.query.first()  # 从数据库中读取用户记录
+    #user = User.query.first()  # 从数据库中读取用户记录
     movies = Movie.query.all()  # 从数据库中读取所有电影记录
-    return render_template('index.html', user=user, movies=movies)# A:渲染主页模板
+    return render_template('index.html',movies=movies)# A:渲染主页模板
+
+
+#404 错误处理函数
+@app.errorhandler(404)  # 传入要处理的错误代码
+def page_not_found(e):  # 接受异常对象作为参数
+    return render_template('404.html'), 404  # 返回模板和状态码
+'''
+提示 和我们前面编写的视图函数相比，这个函数返回了状态码作为第二个参数，
+普通的视图函数之所以不用写出状态码，
+是因为默认会使用 200 状态码，表示成功。
+'''
+
+
+'''
+模板上下文处理函数
+对于多个模板内都需要使用的变量，
+我们可以使用 app.context_processor 装饰器注册一个模板上下文处理函数，如下所示：
+'''
+
+@app.context_processor
+def inject_user():  # 函数名可以随意修改
+    user = User.query.first()
+    return dict(user=user)  # 需要返回字典，等同于return {'user': user}
+
+'''
+这个函数返回的变量（以字典键值对的形式）将会统一注入到每一个模板的上下文环境中，
+因此可以直接在模板中使用。
+现在我们可以删除 404 错误处理函数和主页视图函数中的 user 变量定义，
+并删除在 render_template() 函数里传入的关键字参数：
+'''
+
+
 
 #以下整块为数据库配置
 WIN = sys.platform.startswith('win')
