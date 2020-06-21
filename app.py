@@ -6,15 +6,65 @@ from flask import Flask #从 flask 包导入 Flask 类
 app = Flask(__name__)   #通过实例化这个类，创建一个程序对象 app
 from flask import render_template  ##从 flask 包导入 模板渲染函数
 from flask_sqlalchemy import SQLAlchemy  # 导入扩展类
+from flask import request
+from flask import flash
+from flask import redirect
 
 
 #首页视图函数
-@app.route('/')      #一个视图函数可以绑定多个 URL，这通过附加多个装饰器实现
-@app.route('/123')   #这个叫做装饰器，参数是对应的URL地址 (相对地址)
-def index():      #这个叫做与装饰器对应的视图函数，也叫请求处理函数  
-    #user = User.query.first()  # 从数据库中读取用户记录
+app.route('/123')   #这个叫做装饰器，参数是对应的URL地址 (相对地址)
+@app.route('/', methods=['GET', 'POST'])  #一个视图函数可以绑定多个 URL，这通过附加多个装饰器实现
+def index():                              #这个叫做与装饰器对应的视图函数，也叫请求处理函数
+    if request.method == 'POST':  # 判断是否是 POST 请求
+        # 获取表单数据
+        title = request.form.get('title')  # 传入表单对应输入字段的 name 值
+        year = request.form.get('year')
+        # 验证数据
+        if not title or not year or len(year) > 4 or len(title) > 60:
+            flash('Invalid input.')  # 显示错误提示
+            return redirect(url_for('index'))  # 重定向回主页
+        # 保存表单数据到数据库
+        movie = Movie(title=title, year=year)  # 创建记录
+        db.session.add(movie)  # 添加到数据库会话
+        db.session.commit()  # 提交数据库会话
+        flash('Item created.')  # 显示成功创建的提示
+        return redirect(url_for('index'))  # 重定向回主页
+
+    user = User.query.first()   # 从数据库中读取用户记录
     movies = Movie.query.all()  # 从数据库中读取所有电影记录
-    return render_template('index.html',movies=movies)# A:渲染主页模板
+    return render_template('index.html', user=user, movies=movies)  # A:渲染主页模板
+
+
+#编辑电影条目
+@app.route('/movie/edit/<int:movie_id>', methods=['GET', 'POST'])
+def edit(movie_id):
+    movie = Movie.query.get_or_404(movie_id)
+
+    if request.method == 'POST':  # 处理编辑表单的提交请求
+        title = request.form['title']
+        year = request.form['year']
+
+        if not title or not year or len(year) > 4 or len(title) > 60:
+            flash('Invalid input.')
+            return redirect(url_for('edit', movie_id=movie_id))  # 重定向回对应的编辑页面
+
+        movie.title = title  # 更新标题
+        movie.year = year  # 更新年份
+        db.session.commit()  # 提交数据库会话
+        flash('Item updated.')
+        return redirect(url_for('index'))  # 重定向回主页
+
+    return render_template('edit.html', movie=movie)  # 传入被编辑的电影记录
+
+
+#删除电影条目
+@app.route('/movie/delete/<int:movie_id>', methods=['POST'])  # 限定只接受 POST 请求
+def delete(movie_id):
+    movie = Movie.query.get_or_404(movie_id)  # 获取电影记录
+    db.session.delete(movie)  # 删除对应的记录
+    db.session.commit()  # 提交数据库会话
+    flash('Item deleted.')
+    return redirect(url_for('index'))  # 重定向回主页
 
 
 #404 错误处理函数
@@ -57,6 +107,9 @@ else:  # 否则使用四个斜线
 
 app.config['SQLALCHEMY_DATABASE_URI'] = prefix + os.path.join(app.root_path, 'data.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # 关闭对模型修改的监控
+app.config['SECRET_KEY'] = 'dev'  # 等同于 app.secret_key = 'dev'  设置签名所需的密钥.这个密钥的值在开发时可以随便设置。
+                                  # 基于安全的考虑，在部署时应该设置为随机字符，且不应该明文写在代码里， 在部署章节会详细介绍。
+
 # 在扩展类实例化前加载配置
 db = SQLAlchemy(app)  #数据库对象创建，但真正的数据库还没创建
 
