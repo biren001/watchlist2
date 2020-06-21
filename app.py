@@ -8,12 +8,12 @@ from flask import render_template  ##从 flask 包导入 模板渲染函数
 from flask_sqlalchemy import SQLAlchemy  # 导入扩展类
 
 
-
 @app.route('/')      #一个视图函数可以绑定多个 URL，这通过附加多个装饰器实现
 @app.route('/123')   #这个叫做装饰器，参数是对应的URL地址 (相对地址)
-def index():      #这个叫做与装饰器对应的视图函数，也叫请求处理函数
-    return render_template('index.html', name=name, movies=movies)   # A:渲染主页模板
-
+def index():      #这个叫做与装饰器对应的视图函数，也叫请求处理函数  
+    user = User.query.first()  # 从数据库中读取用户记录
+    movies = Movie.query.all()  # 从数据库中读取所有电影记录
+    return render_template('index.html', user=user, movies=movies)# A:渲染主页模板
 
 #以下整块为数据库配置
 WIN = sys.platform.startswith('win')
@@ -41,7 +41,7 @@ class Movie(db.Model):  # 表名将会是 movie
 
 
 #模型类创建后，还不能对数据库进行操作，因为我们还没有创建真正的数据库文件和真正的表
-db.create_all() #创建真正的数据库，表也就跟着创建了
+#db.create_all() #创建真正的数据库，表也就跟着创建了
 '''
 #如果你改动了模型类，想重新生成表模型，那么需要先使用 db.drop_all() 删除表，但原来的数据库还在，
 只是成了没有数据的空数据库，然后使用db.create_all() 重新创建新表。
@@ -96,6 +96,11 @@ def forge():
     click.echo('Done.')
 
 #现在在终端执行 flask forge 命令就会把所有虚拟数据添加到数据库里：
+
+
+
+
+
 
 
 
