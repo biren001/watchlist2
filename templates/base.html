@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
     {#  <meta> 元素，这个元素会设置页面的视口，让页面根据设备的宽度来自动缩放页面，让移动设备拥有更好的浏览体验 #}
     
-    <title>{{ user.name }}'s Watchlist</title>
+    <title>{{ user.name }}的网红一代</title>
     
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
      {# 添加网站头像，显示在标签页和书签栏的网站头像  #}
@@ -20,7 +20,7 @@
 <body>
     <h2>
         <img alt="Avatar" class="avatar" src="{{ url_for('static', filename='images/avatar.png') }}">
-        {{ user.name }}'s Watchlist
+        {{ user.name }}的网红一代
     </h2>
     <nav>
         <ul>
@@ -46,7 +46,7 @@
     
     {% block content %}{% endblock %}
     <footer>
-        <small>&copy; 2018 <a href="http://helloflask.com/tutorial">HelloFlask</a></small>
+        <small>&copy; 2020 <a href="http://helloflask.com/tutorial">网红一代</a></small>
     </footer>
 </body>
 </html>
